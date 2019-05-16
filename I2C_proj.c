@@ -154,17 +154,17 @@ int main(void)
 					wData[0] = BMP180_CALIBRATION;
 					if(HAL_OK == HAL_I2C_Master_Transmit(&hi2c1, BMP180_ADDRESS, wData, 1, 0xFFFFFFFF)){
 						if(HAL_OK == HAL_I2C_Master_Receive(&hi2c1, BMP180_ADDRESS, rData, 22, 0xFFFFFFFF)){
-							AC1 = (rData[0] << 8) | (rData[1] << 1);
-							AC2 = (rData[2] << 8) | (rData[3] << 1);
-							AC3	= (rData[4] << 8) | (rData[5] << 1);
-							AC4 = (rData[6] << 8) | (rData[7] << 1);
-							AC5 = (rData[8] << 8) | (rData[9] << 1);
-							AC6 = (rData[10] << 8) | (rData[11] << 1);
-							B1 = (rData[12] << 8) | (rData[13] << 1);
-							B2 = (rData[14] << 8) | (rData[15] << 1);
-							MB = (rData[16] << 8) | (rData[17] << 1);
-							MC = (rData[18] << 8) | (rData[19] << 1);
-							MD = (rData[20] << 8) | (rData[21] << 1);
+							AC1 = (rData[0] << 2) | (rData[1] << 2);
+							AC2 = (rData[2] << 2) | (rData[3] << 2);
+							AC3 = (rData[4] << 2) | (rData[5] << 2);
+							AC4 = (rData[6] << 2) | (rData[7] << 2);
+							AC5 = (rData[8] << 2) | (rData[9] << 2);
+							AC6 = (rData[10] << 2) | (rData[11] << 2);
+							B1 = (rData[12] << 2) | (rData[13] << 2);
+							B2 = (rData[14] << 2) | (rData[15] << 2);
+							MB = (rData[16] << 2) | (rData[17] << 2);
+							MC = (rData[18] << 2) | (rData[19] << 2);
+							MD = (rData[20] << 2) | (rData[21] << 2);
 							printf("%d %d\r\n",rData[0], rData[1]);
 							
 						}
@@ -173,17 +173,17 @@ int main(void)
 			}
 		}
 		
-		wData[0] = BMP180_GET_UT;
-		if(HAL_OK == HAL_I2C_Master_Transmit(&hi2c1, BMP180_CONTROL, wData, 1, 0xFFFFFFFF)){
+		wData[1] = BMP180_GET_UT;
+		if(HAL_OK == HAL_I2C_Master_Transmit(&hi2c1, BMP180_CONTROL, &wData[1], 1, 0xFFFFFFFF)){
 			HAL_Delay(4500);
 			if(HAL_OK == HAL_I2C_Master_Receive(&hi2c1, BMP180_CONTROL, rData, 2, 0xFFFFFFFF)){
 				MSB = rData[0];
 				LSB = rData[1];
+				UT = (MSB << 8) + LSB;
 			}
 		}
-		UT = (MSB <<8) + LSB;
-		wData[0] = BMP180_GET_UP + (oss << 6);
-		if(HAL_OK == HAL_I2C_Master_Transmit(&hi2c1, BMP180_CONTROL, wData, 1, 0xFFFFFFFF)){
+		wData[2] = BMP180_GET_UP + (oss << 6);
+		if(HAL_OK == HAL_I2C_Master_Transmit(&hi2c1, BMP180_CONTROL, &wData[2], 1, 0xFFFFFFFF)){
 			HAL_Delay(4500);
 			if(HAL_OK == HAL_I2C_Master_Receive(&hi2c1, BMP180_CONTROL, rData, 3, 0xFFFFFFFF)){
 				MSB = rData[0];
@@ -195,19 +195,19 @@ int main(void)
 		
 		printf("%ld %ld\r\n", UT, UP);
 		printf("%d %d %d %d %d %d %d %d\r\n",AC1,AC2,AC3,AC4,AC5,AC6, B1,B2);
-		X1 = (UT - AC6)*AC5/(2^15);
-		X2 = (MC * 2^11)/ (X1 + MD);
+		X1 = (UT - AC6) * AC5) >> 15;
+		X2 = (MC << 11)/ (X1 + MD);
 		B5 = X1 + X2;
-		T = (B5 + 8)/2^4;
+		T = (B5 + 8) >> 4;
 		B6 = B5 - 4000;
-		X1 = (B2 * (B6^2/2^12))/2^11;
-		X2 = AC2 * B6 / 2^11;
+		X1 = (B2 * (B6 * B6) >> 12)) >> 11;
+		X2 = (AC2 * B6) >> 11;
 		X3 = X1 + X2;
-		B3 = (((AC1 * 4 + X3)<<oss) + 2) / 4;
-		X1 = AC3 * B6 / 2^13;
-		X2 = (B1 * (B6^2/2^12))/2^16;
-		X3 = ((X1 + X2) + 2)/2^2;
-		B4 = AC4 * (unsigned long)(X3 + 32768) / 2^15;
+		B3 = (((AC1 * 4 + X3) << oss) + 2) / 4;
+		X1 = (AC3 * B6) >> 13;
+		X2 = (B1 * (B6 * B6) >> 12) >> 16;
+		X3 = ((X1 + X2) + 2) >> 2;
+		B4 = (AC4 * (unsigned long)(X3 + 32768)) >> 15;
 		B7 = ((unsigned long)UP - B3) * (50000 >> oss);
 		if(B7 < 0x80000000){
 			P = (B7 * 2) / B4;
@@ -215,10 +215,10 @@ int main(void)
 		else{
 			P = (B7 / B4) * 2;
 		}
-		X1 = (P/2^8)^2;
-		X1 *= 3038 / 2^16;
-		X2 = (-7357 * P) / 2^16;
-		P += (X1 + X2 + 3791) / 2^4;
+		X1 = (P >> 8) * (P >> 8);
+		X1 = (X1 * 3038) >> 16;
+		X2 = (-7357 * P) >> 16;
+		P += (X1 + X2 + 3791) >> 4;
 		printf("%ld %ld\r\n",T,P);
 
     /* USER CODE BEGIN 3 */
