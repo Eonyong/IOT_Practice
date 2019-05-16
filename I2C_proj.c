@@ -143,8 +143,10 @@ int main(void)
   while (1)
   {
 		wData[0] = BMP180_DATA;
-		HAL_I2C_Master_Transmit(&hi2c1, 0xF4, wData, 1, 0xFFFFFFFF);
+		HAL_I2C_Master_Transmit(&hi2c1, BMP180_ADDRESS, 0xF4, 1, 0xFFFFFFFF);
 		HAL_Delay(450);
+		HAL_I2C_Master_Receive(&hi2c1, BMP180_ADDRESS, 0xF6, 1, 0xFFFFFFFF);
+		HAL_I2C_Master_Receive(&hi2c1, BMP180_ADDRESS, 0xF6, 2);
 		
 		
 	
