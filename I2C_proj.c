@@ -179,7 +179,7 @@ int main(void)
 			if(HAL_OK == HAL_I2C_Master_Receive(&hi2c1, BMP180_CONTROL, rData, 2, 0xFFFFFFFF)){
 				MSB = rData[0];
 				LSB = rData[1];
-				UT = (MSB << 8) + LSB;
+				UT = (MSB << 8) | LSB;
 			}
 		}
 		wData[2] = BMP180_GET_UP + (oss << 6);
@@ -191,7 +191,7 @@ int main(void)
 				XLSB = rData[2];
 			}
 		}
-		UP = ((MSB << 16) + (LSB << 8) + XLSB) >> (8 - oss);
+		UP = ((MSB << 16) | (LSB << 8) | XLSB) >> (8 - oss);
 		
 		printf("%ld %ld\r\n", UT, UP);
 		printf("%d %d %d %d %d %d %d %d\r\n",AC1,AC2,AC3,AC4,AC5,AC6, B1,B2);
