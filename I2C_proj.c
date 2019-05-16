@@ -96,6 +96,8 @@ static void MX_I2C1_Init(void);
 /* USER CODE BEGIN 0 */
 int16_t ac1, ac2, ac3, b1, b2, mb, mc, md, b5;
 uint16_t ac4, ac5, ac6;
+long UT, UP, X1, X2, X3, B5, T, B6, p;
+unsigned long B4, B7;
 /* USER CODE END 0 */
 
 /**
