@@ -52,7 +52,8 @@
 #define BMP180_OUT_LSB			 0xF7
 #define BMP180_OUT_XLSB			 0xF8
 #define BMP180_CALIBRATION	 0xAA
-#define BMP180_DATA					 0x2E
+#define BMP180_GET_UT				 0x2E
+#define BMP180_GET_UP				 0x34
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -96,8 +97,9 @@ static void MX_I2C1_Init(void);
 /* USER CODE BEGIN 0 */
 int16_t ac1, ac2, ac3, b1, b2, mb, mc, md, b5;
 uint16_t ac4, ac5, ac6;
-long UT, UP, X1, X2, X3, B5, T, B6, p;
+long UT, UP, X1, X2, X3, B5, T, B6, p, B3;
 unsigned long B4, B7;
+short oss = 0;
 /* USER CODE END 0 */
 
 /**
@@ -135,6 +137,8 @@ int main(void)
 	
 	uint8_t wData[4];
 	uint8_t rData[32];
+	uint8_t regAddr;
+	long MSB, LSB, XLSB;
 
   /* USER CODE END 2 */
 
@@ -142,14 +146,21 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-		wData[0] = BMP180_DATA;
-		HAL_I2C_Master_Transmit(&hi2c1, BMP180_ADDRESS, 0xF4, 1, 0xFFFFFFFF);
-		HAL_Delay(450);
-		HAL_I2C_Master_Receive(&hi2c1, BMP180_ADDRESS, 0xF6, 1, 0xFFFFFFFF);
-		HAL_I2C_Master_Receive(&hi2c1, BMP180_ADDRESS, 0xF6, 2);
-		
-		
-	
+		regAddr = BMP180_GET_UT;
+		if(HAL_I2C_Master_Transmit(&hi2c1, BMP180_CONTROL, &regAddr, 1, 0xFFFFFFFF) == HAL_OK){
+			HAL_Delay(450);
+			MSB = HAL_I2C_Master_Receive(&hi2c1, BMP180_ADDRESS, rData, 1, 0xFFFFFFFF);
+			LSB = HAL_I2C_Master_Receive(&hi2c1, BMP180_ADDRESS, rData, 1, 0xFFFFFFFF);
+			UT = MSB << (8 + LSB);
+		}
+		regAddr = BMP180_GET_UP + (oss << 6);
+		if(HAL_I2C_Master_Transmit(&hi2c1, BMP180_ADDRESS, &regAddr, 1, 0xFFFFFFFF) == HAL_OK){
+			HAL_Delay(450);
+			MSB = HAL_I2C_Master_Receive(&hi2c1, BMP180_ADDRESS, rData, 2, 0xFFFFFFFF);
+			LSB = HAL_I2C_Master_Receive(&hi2c1, BMP180_ADDRESS, rData, 2, 0xFFFFFFFF);
+			XLSB = HAL_I2C_Master_Receive(&hi2c1, BMP180_ADDRESS, rData, 2, 0xFFFFFFFF);
+			UP = (MSB << (16 + LSB) << (8 + XLSB)) >> (8 - oss);
+		}
     /* USER CODE END WHILE */
 		wData[0] = BMP180_WHO_AM_I;
 		if(HAL_OK == HAL_I2C_Master_Transmit(&hi2c1, BMP180_ADDRESS, wData, 1, 0xFFFFFFFF)){
@@ -176,6 +187,32 @@ int main(void)
 				}
 			}
 		}
+		printf("%d %d %d %d %d %d %d %d",ac1,ac2,ac3,ac4,ac5,ac6, b1,b2);
+		X1 = (UT - ac6)*ac5/(2^15);
+		X2 = (mc * 2^11)/ (X1 + md);
+		b5 = X1 + X2;
+		T = (b5 + 8)/2^4;
+		B6 = b5 - 4000;
+		X1 = (b2 * (B6^2/2^12))/2^11;
+		X2 = ac2 * B6 / 2^11;
+		X3 = X1 + X2;
+		B3 = (((ac1 * 4 + X3)<<oss) + 2) / 4;
+		X1 = ac3 * B6 / 2^13;
+		X2 = (b1 * (B6^2/2^12))/2^16;
+		X3 = ((X1 + X2) + 2)/2^2;
+		B4 = ac4 * (unsigned long)(X3 + 32768) / 2^15;
+		B7 = ((unsigned long)UP - B3) * (50000 >> oss);
+		if(B7 < 0x80000000){
+			p = (B7 * 2) / B4;
+		}
+		else{
+			p = (B7 / B4) * 2;
+		}
+		X1 = (p/2^8)^2;
+		X1 *= 3038 / 2^16;
+		X2 = (-7357 * p) / 2^16;
+		p += (X1 + X2 + 3791) / 2^4;
+		printf("%ld %ld\r\n",T,p);
 
     /* USER CODE BEGIN 3 */
   }
