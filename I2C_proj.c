@@ -41,6 +41,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include <stdio.h>
+#include <math.h>
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
@@ -98,6 +99,7 @@ static void MX_I2C1_Init(void);
 int16_t AC1, AC2, AC3, B1, B2, B5, MB, MC, MD;
 uint16_t AC4, AC5, AC6;
 long UT, UP, X1, X2, X3, B3, B6, T, P;
+double Al;
 unsigned long B4, B7;
 short oss = 0;
 /* USER CODE END 0 */
@@ -136,16 +138,15 @@ int main(void)
 	
 	
 	uint8_t wData[4];
-	uint8_t rData[22];
+	uint8_t rData[32];
+	uint8_t regAddr = BMP180_OUT_MSB;
+	int32_t P0 = 101325;
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1)
-  {
-    /* USER CODE END WHILE */
-		wData[0] = BMP180_WHO_AM_I;
+	wData[0] = BMP180_WHO_AM_I;
 		if(HAL_OK == HAL_I2C_Master_Transmit(&hi2c1, BMP180_ADDRESS, wData, 1, 0xFFFFFFFF)){
 			if(HAL_OK == HAL_I2C_Master_Receive(&hi2c1, BMP180_ADDRESS, rData, 1, 0xFFFFFFFF)){
 				if (rData[0] == 0x55){
@@ -153,79 +154,79 @@ int main(void)
 					wData[0] = BMP180_CALIBRATION;
 					if(HAL_OK == HAL_I2C_Master_Transmit(&hi2c1, BMP180_ADDRESS, wData, 1, 0xFFFFFFFF)){
 						if(HAL_OK == HAL_I2C_Master_Receive(&hi2c1, BMP180_ADDRESS, rData, 22, 0xFFFFFFFF)){
-							AC1 = (rData[0] << 2) | (rData[1] << 3);
-							AC2 = (rData[2] << 2) | (rData[3] << 3);
-							AC3 = (rData[4] << 2) | (rData[5] << 3);
-							AC4 = (rData[6] << 2) | (rData[7] << 3);
-							AC5 = (rData[8] << 2) | (rData[9] << 3);
-							AC6 = (rData[10] << 2) | (rData[11] << 3);
-							B1 = (rData[12] << 2) | (rData[13] << 3);
-							B2 = (rData[14] << 2) | (rData[15] << 3);
-							MB = (rData[16] << 2) | (rData[17] << 3);
-							MC = (rData[18] << 2) | (rData[19] << 3);
-							MD = (rData[20] << 2) | (rData[21] << 3);
-							printf("%c %c\r\n",rData[0], rData[1]);
-							/**
-							AC1 = (rData[0] << 8) | rData[1];
-							AC2 = (rData[2] << 8) | rData[3];
-							AC3 = (rData[4] << 8) | rData[5];
-							AC4 = (rData[6] << 8) | rData[7];
-							AC5 = (rData[8] << 8) | rData[9];
-							AC6 = (rData[10] << 8) | rData[11];
-							B1 = (rData[12] << 8) | rData[13];
-							B2 = (rData[14] << 8) | rData[15];
-							MB = (rData[16] << 8) | rData[17];
-							MC = (rData[18] << 8) | rData[19];
-							MD = (rData[20] << 8) | rData[21];
-							**/
+							AC1 = (rData[0] << 8) + rData[1];
+							AC2 = (rData[2] << 8) + rData[3];
+							AC3 = (rData[4] << 8) + rData[5];
+							AC4 = (rData[6] << 8) + rData[7];
+							AC5 = (rData[8] << 8) + rData[9];
+							AC6 = (rData[10] << 8) + rData[11];
+							B1 = (rData[12] << 8) + rData[13];
+							B2 = (rData[14] << 8) + rData[15];
+							MB = (rData[16] << 8) + rData[17];
+							MC = (rData[18] << 8) + rData[19];
+							MD = (rData[20] << 8) + rData[21];
 						}
 					}
-				}
-				wData[0] = BMP180_GET_UT;
-				HAL_I2C_Master_Transmit(&hi2c1, BMP180_ADDRESS, wData, 1, 0xFFFFFFFF);
-				HAL_Delay(4500);
-				HAL_I2C_Master_Receive(&hi2c1, BMP180_ADDRESS, rData, 2, 0xFFFFFFFF);
-				UT = (rData[0] << 8) | rData[1];
-				wData[0] = BMP180_GET_UP + (oss << 6);
-				HAL_I2C_Master_Transmit(&hi2c1, BMP180_ADDRESS, wData, 2, 0xFFFFFFFF);
-				HAL_Delay(4500);
-				HAL_I2C_Master_Receive(&hi2c1, BMP180_ADDRESS, rData, 3, 0xFFFFFFFF);
-				UP = ((rData[0] << 16) | (rData[1] << 8) | rData[2]) >> (8 - oss);
-				printf("%ld %ld\r\n", UT, UP);
-				printf("%d %d %d %d %d %d %d %d\r\n",AC1,AC2,AC3,AC4,AC5,AC6, B1,B2);
-				
-				X1 = ((UT - AC6) * AC5) >> 15;
-				X2 = (MC << 11)/ (X1 + MD);
-				B5 = X1 + X2;
-				T = (B5 + 8) >> 4;
-				B6 = B5 - 4000;
-				X1 = (B2 * (B6 * B6) >> 12) >> 11;
-				X2 = (AC2 * B6) >> 11;
-				X3 = X1 + X2;
-				B3 = (((AC1 * 4 + X3) << oss) + 2) / 4;
-				X1 = (AC3 * B6) >> 13;
-				X2 = (B1 * (B6 * B6) >> 12) >> 16;
-				X3 = ((X1 + X2) + 2) >> 2;
-				B4 = (AC4 * (unsigned long)(X3 + 32768)) >> 15;
-				B7 = ((unsigned long)UP - B3) * (50000 >> oss);
-				if(B7 < 0x80000000){
-					P = (B7 * 2) / B4;
-				}
-				else{
-					P = (B7 / B4) * 2;
-				}
-				X1 = (P >> 8) * (P >> 8);
-				X1 = (X1 * 3038) >> 16;
-				X2 = (-7357 * P) >> 16;
-				P += (X1 + X2 + 3791) >> 4;
-				printf("%ld %ld\r\n",T,P);
+				}	
 			}
 		}
+	
+  /* USER CODE END 2 */
+  /* Infinite loop */
+  /* USER CODE BEGIN WHILE */
+  while (1)
+  {
+    /* USER CODE END WHILE */
 		
+		wData[0] = BMP180_CONTROL;
+		wData[1] = BMP180_GET_UT;
+		HAL_I2C_Master_Transmit(&hi2c1, BMP180_ADDRESS, wData, 2, 0xFFFFFFFF);
+		HAL_Delay(450);
+		HAL_I2C_Master_Transmit(&hi2c1, BMP180_ADDRESS, &regAddr, 1, 0xFFFFFFFF);
+	  HAL_I2C_Master_Receive(&hi2c1, BMP180_ADDRESS, rData, 2, 0xFFFFFFFF);
+	  UT = (rData[0] << 8) | rData[1];
+	  wData[1] = BMP180_GET_UP | (oss << 6);
+	  HAL_I2C_Master_Transmit(&hi2c1, BMP180_ADDRESS, wData, 2, 0xFFFFFFFF);
+	  HAL_Delay(450);
+	  HAL_I2C_Master_Transmit(&hi2c1, BMP180_ADDRESS, &regAddr, 1, 0xFFFFFFFF);
+	  HAL_I2C_Master_Receive(&hi2c1, BMP180_ADDRESS, rData, 3, 0xFFFFFFFF);
+	  UP = ((rData[0] << 16) | (rData[1] << 8) | rData[2]) >> (8 - oss);
+	
+	  X1 = ((UT - (long)AC6) * (long)AC5) >> 15;
+	  X2 = ((long)MC << 11) / (X1 + MD);
+	  B5 = X1 + X2;
+	  T = (B5 + 8) >> 4;
+	  T /= 10;
+	 		
+	  B6 = B5 - 4000;
+	  X1 = (B2 * (B6 * B6) >> 12) >> 11;
+	  X2 = (AC2 * B6) >> 11;
+	  X3 = X1 + X2;
+	  B3 = ((((long)AC1 * 4 + X3) << oss) + 2) >> 2;
+	 	
+	  X1 = (AC3 * B6) >> 13;
+	  X2 = (B1 * (B6 * B6) >> 12) >> 16;
+	  X3 = ((X1 + X2) + 2) >> 2;
+	  B4 = (AC4 * (unsigned long)(X3 + 32768)) >> 15;
+	  B7 = (unsigned long)(UP - B3) * (50000 >> oss);
+	  if(B7 < 0x80000000){
+	  	P = (B7 * 2) / B4;
+	  }
+	  else{
+	  	P = (B7 / B4) * 2;
+	  }
+	  X1 = (P >> 8) * (P >> 8);
+	  X1 = (X1 * 3038) >> 16;
+	  X2 = (-7357 * P) >> 16;
+	  P += (X1 + X2 + 3791) >> 4;
 		
-
+		Al = pow((P / P0), (1 / 5.255));
+ 	  Al = 44330 * (1 - Al);
+	  printf(" Temperature : %ld degree, Pressure : %ld Pa, Altitude : %.2f m \r\n", T, P, Al);
     /* USER CODE BEGIN 3 */
   }
+	
+	
   /* USER CODE END 3 */
 }
 
@@ -369,6 +370,10 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
 }
 
