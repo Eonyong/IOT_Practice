@@ -53,7 +53,7 @@
 #define ADXL345_RW_RATE			0x2c
 #define ADXL345_POWER_CTL		0x2d
 #define ADXL345_DATA_FORMAT 0x31
-#define ADXL345_DATA				0x31
+#define ADXL345_DATA				0x32
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -90,8 +90,9 @@ static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_SPI2_Init(void);
 /* USER CODE BEGIN PFP */
-uint8_t wData[8],rData[8],rawData[3];
-int16_t accX, accY, accZ;
+uint8_t wData[8],rData[8];
+int8_t rawData[3];
+double accX, accY, accZ;
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -115,8 +116,8 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-	printf("ADXL345 examples\r\n\n");
-	wData[0] = (READ <<7) |(SINGLE << 6) | ADXL345_DEVID ;
+	
+	
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -133,49 +134,62 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
-
+	wData[0] = (READ <<7) |(SINGLE << 6) | ADXL345_DEVID ;
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1,GPIO_PIN_RESET);
+	HAL_SPI_Transmit(&hspi2, wData, 2, 0xFFFF);
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, GPIO_PIN_SET);
+	HAL_SPI_Receive(&hspi2, rData, 2, 0xFFFF);
+printf("ADXL345 exercise\r\n\n");
+printf("ADXL345 device ID is 0x%X\r\n",rData[1]);
+printf("Set range as +/- 4g with 10 bit fixed resolution\r\n");
+printf("put it in measurement mode\r\n");
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-		wData[0] = (WRITE <<7) |(SINGLE << 6) | ADXL345_RW_RATE ;
-		wData[1] = 0x08;
-		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, GPIO_PIN_RESET);
-		if(HAL_SPI_Transmit(&hspi2, wData, 2,0xFFFF) == HAL_OK){
-			printf("RW_RATE is update with %d\n\r", wData[1]);
-		}
-		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, GPIO_PIN_SET);
 		
-    /* USER CODE END WHILE */
-		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, GPIO_PIN_RESET);
-		if(HAL_SPI_TransmitReceive(&hspi2, wData, rData,2,0xFFFF) == HAL_OK){
-			printf("New RW_RATE value : 0x%X\n\r", rData[1]);
-		}
-		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, GPIO_PIN_SET);
-		
-		HAL_Delay(1000);
 		
 		wData[0] = (WRITE <<7) |(SINGLE << 6) | ADXL345_RW_RATE ;
 		wData[1] = 0x0A;
 		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, GPIO_PIN_RESET);
-		if(HAL_SPI_Transmit(&hspi2, wData, 2,0xFFFF) == HAL_OK){
-			printf("RW_RATE is update with %d\n\r", wData[1]);
-		}
+		HAL_SPI_Transmit(&hspi2, wData, 2,0xFFFF);
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, GPIO_PIN_SET);
+		
+		
+		
+    /* USER CODE END WHILE */
+		
+		
+		wData[0] = (WRITE <<7) |(SINGLE << 6) | ADXL345_POWER_CTL ;
+		wData[1] = 0x0A;
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, GPIO_PIN_RESET);
+		HAL_SPI_Transmit(&hspi2, wData, 2,0xFFFF);
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, GPIO_PIN_SET);
+		
+		
+		wData[0] = (WRITE <<7) |(SINGLE << 6) | ADXL345_DATA_FORMAT ;
+		wData[1] = READ;
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, GPIO_PIN_RESET);
+		HAL_SPI_Transmit(&hspi2, wData, 2,0xFFFF);
 		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, GPIO_PIN_SET);
 		
     /* USER CODE END WHILE */
-		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, GPIO_PIN_RESET);
-		if(HAL_SPI_TransmitReceive(&hspi2, wData, rData,2,0xFFFF) == HAL_OK){
-			printf("New RW_RATE value : 0x%X\n\r", rData[1]);
-		}
-		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, GPIO_PIN_SET);
 		
 		HAL_Delay(1000);
     /* USER CODE BEGIN 3 */
+		wData[0] = (READ <<7) |(MULTIPLE << 6) | ADXL345_DATA;
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, GPIO_PIN_RESET);
+		HAL_SPI_Transmit(&hspi2, wData,1,0xFFFF);
+		HAL_SPI_Receive(&hspi2, rData,6,0xFFFF);
+			rawData[0] = (rData[1]<<8) | rData[0];
+			rawData[1] = (rData[3]<<8) | rData[2];
+			rawData[2] = (rData[5]<<8) | rData[4];
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, GPIO_PIN_SET);
 		
 		accX = 0.0078 * rawData[0];
 		accY = 0.0078 * rawData[1];
 		accZ = 0.0078 * rawData[2];
+		printf("\rx = %+1.2f g\t y = %+1.2f g\t z = %+1.2f g",accX,accY,accZ);
   }
   /* USER CODE END 3 */
 }
