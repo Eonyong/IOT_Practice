@@ -139,6 +139,7 @@ int main(void)
 	
 	uint8_t wData[4];
 	uint8_t rData[32];
+	/* MSB의 주소를 변수에 저장 */
 	uint8_t regAddr = BMP180_OUT_MSB;
 	int32_t P0 = 101325;
 
@@ -177,27 +178,34 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-		
+	/* CONTROL 주소와 온도 측정 주소를 배열에 저장 */
 		wData[0] = BMP180_CONTROL;
 		wData[1] = BMP180_GET_UT;
+	/* CONTROL 주소와 온도 측정 주소를 측정 기기에 입력 */
 		HAL_I2C_Master_Transmit(&hi2c1, BMP180_ADDRESS, wData, 2, 0xFFFFFFFF);
 		HAL_Delay(450);
+	/* MSB의 주소를 측정 기기에 입력 */
 		HAL_I2C_Master_Transmit(&hi2c1, BMP180_ADDRESS, &regAddr, 1, 0xFFFFFFFF);
+	/* 측정 값을 rData에 저장 */
 	  HAL_I2C_Master_Receive(&hi2c1, BMP180_ADDRESS, rData, 2, 0xFFFFFFFF);
 	  UT = (rData[0] << 8) | rData[1];
+	/* 압력 측정 주소로 변경 */
 	  wData[1] = BMP180_GET_UP | (oss << 6);
+	/* CONTROL 주소와 압력 측정 주소를 측정 기기에 입력 */
 	  HAL_I2C_Master_Transmit(&hi2c1, BMP180_ADDRESS, wData, 2, 0xFFFFFFFF);
 	  HAL_Delay(450);
+	/* MSB의 주소를 측정 기기에 입력 */
 	  HAL_I2C_Master_Transmit(&hi2c1, BMP180_ADDRESS, &regAddr, 1, 0xFFFFFFFF);
+	/* 측정 값을 rData에 저장 */
 	  HAL_I2C_Master_Receive(&hi2c1, BMP180_ADDRESS, rData, 3, 0xFFFFFFFF);
 	  UP = ((rData[0] << 16) | (rData[1] << 8) | rData[2]) >> (8 - oss);
-	
+	/* Temperature calculation */
 	  X1 = ((UT - (long)AC6) * (long)AC5) >> 15;
 	  X2 = ((long)MC << 11) / (X1 + MD);
 	  B5 = X1 + X2;
 	  T = (B5 + 8) >> 4;
 	  T /= 10;
-	 		
+	/* Pressure calculation */ 		
 	  B6 = B5 - 4000;
 	  X1 = (B2 * (B6 * B6) >> 12) >> 11;
 	  X2 = (AC2 * B6) >> 11;
@@ -219,9 +227,10 @@ int main(void)
 	  X1 = (X1 * 3038) >> 16;
 	  X2 = (-7357 * P) >> 16;
 	  P += (X1 + X2 + 3791) >> 4;
-		
+	/* Altitude calculationn */	
 		Al = pow((P / P0), (1 / 5.255));
  	  Al = 44330 * (1 - Al);
+
 	  printf(" Temperature : %ld degree, Pressure : %ld Pa, Altitude : %.2f m \r\n", T, P, Al);
     /* USER CODE BEGIN 3 */
   }
